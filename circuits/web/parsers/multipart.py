@@ -41,6 +41,8 @@ from tempfile import TemporaryFile
 from wsgiref.headers import Headers
 import re
 try:
+    from urllib.parse import parse_qs
+except ImportError:  # pragma: no cover (fallback for Python 3.7)
     from urlparse import parse_qs
 except ImportError:  # pragma: no cover (fallback for Python 2.5)
     from cgi import parse_qs
