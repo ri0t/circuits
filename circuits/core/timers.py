@@ -1,9 +1,9 @@
 """Timer component to facilitate timed events."""
 
-from circuits.core.handlers import handler
-
-from time import time, mktime
 from datetime import datetime
+from time import mktime, time
+
+from circuits.core.handlers import handler
 
 from .components import BaseComponent
 
@@ -30,7 +30,9 @@ class Timer(BaseComponent):
         :param persist:  An optional keyword argument which if ``True``
                          will cause the event to be fired repeatedly
                          once per configured interval until the timer
-                         is unregistered. **Default:** ``False``
+                         is unregistered.  If ``False``, the event fires
+                         exactly once after the specified interval, and
+                         the timer is unregistered. **Default:** ``False``
         :type persist:   ``bool``
         """
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 from circuits import Component, Event
 
 
@@ -40,5 +39,6 @@ class App(Component):
         yield self.wait("hello")
         print("{0:d}".format(x.value))
         self.stop()
+
 
 App().run()

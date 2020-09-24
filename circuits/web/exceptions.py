@@ -4,7 +4,6 @@ This module implements a set of standard HTTP Errors as Python Exceptions.
 
 Note: This code is mostly borrowed from werkzeug and adapted for circuits.web
 """
-
 from inspect import isclass
 
 from .constants import HTTP_STATUS_CODES
@@ -324,6 +323,7 @@ class Redirect(HTTPException):
             self.urls = urls
 
         self.status = status
+
 
 __all__ = [
     x[0] for x in list(globals().items())

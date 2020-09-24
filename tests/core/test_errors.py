@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-
 import pytest
 
-from circuits import Event, Component
+from circuits import Component, Event
 
 
 class test(Event):

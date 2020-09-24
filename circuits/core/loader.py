@@ -3,13 +3,12 @@ This module implements a generic Loader suitable for dynamically loading
 components from other modules. This supports loading from local paths,
 eggs and zip archives. Both setuptools and distribute are fully supported.
 """
-
 import sys
 from inspect import getmembers, getmodule, isclass
 
+from .components import BaseComponent
 from .handlers import handler
 from .utils import safeimport
-from .components import BaseComponent
 
 
 class Loader(BaseComponent):
@@ -41,9 +40,8 @@ class Loader(BaseComponent):
         module = safeimport(name)
         if module is not None:
 
-            test = lambda x: isclass(x) \
-                and issubclass(x, BaseComponent) \
-                and getmodule(x) is module
+            def test(x):
+                return isclass(x) and issubclass(x, BaseComponent) and getmodule(x) is module
             components = [x[1] for x in getmembers(module, test)]
 
             if components:

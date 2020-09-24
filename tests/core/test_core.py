@@ -1,6 +1,5 @@
 #!/usr/bin/python -i
-
-from circuits import Event, Component, Manager
+from circuits import Component, Event, Manager
 
 
 class test(Event):
@@ -36,4 +35,4 @@ def test_fire():
 
 def test_contains():
     assert App in m
-    assert not m in app
+    assert m not in app

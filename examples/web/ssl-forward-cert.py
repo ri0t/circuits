@@ -1,9 +1,8 @@
 #!/usr/bin/env python
-
 # stdlib
 import ssl
 
-from circuits.web import Server, Controller
+from circuits.web import Controller, Server
 
 
 class Root(Controller):

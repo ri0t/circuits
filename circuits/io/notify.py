@@ -2,7 +2,6 @@
 
 A Component wrapping the inotify API using the pyinotify library.
 """
-
 try:
     from pyinotify import IN_UNMOUNT
     from pyinotify import WatchManager, Notifier, ALL_EVENTS
@@ -10,30 +9,33 @@ try:
     from pyinotify import IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF
     from pyinotify import IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO
 except ImportError:
-    raise Exception("No pyinotify support available. Is pyinotify installed?")
+    raise ImportError("No pyinotify support available. Is pyinotify installed?")
 
-from circuits.core.utils import findcmp
-from circuits.core import handler, BaseComponent
+from circuits.core import BaseComponent, handler
 from circuits.core.pollers import BasePoller, Poller
+from circuits.core.utils import findcmp
 
-from .events import accessed, closed, created, deleted, modified, moved, opened, ready, unmounted
+from .events import (
+    accessed, closed, created, deleted, modified, moved, opened, ready,
+    unmounted,
+)
 
 MASK = ALL_EVENTS
 
 EVENT_MAP = {
-    IN_MOVED_TO:        moved,
-    IN_MOVE_SELF:       moved,
-    IN_MOVED_FROM:      moved,
-    IN_CLOSE_WRITE:     closed,
-    IN_CLOSE_NOWRITE:   closed,
-    IN_OPEN:            opened,
-    IN_DELETE_SELF:     deleted,
-    IN_DELETE:          deleted,
-    IN_CREATE:          created,
-    IN_ACCESS:          accessed,
-    IN_MODIFY:          modified,
-    IN_ATTRIB:          modified,
-    IN_UNMOUNT:         unmounted,
+    IN_MOVED_TO: moved,
+    IN_MOVE_SELF: moved,
+    IN_MOVED_FROM: moved,
+    IN_CLOSE_WRITE: closed,
+    IN_CLOSE_NOWRITE: closed,
+    IN_OPEN: opened,
+    IN_DELETE_SELF: deleted,
+    IN_DELETE: deleted,
+    IN_CREATE: created,
+    IN_ACCESS: accessed,
+    IN_MODIFY: modified,
+    IN_ATTRIB: modified,
+    IN_UNMOUNT: unmounted,
 }
 
 
@@ -59,9 +61,9 @@ class Notify(BaseComponent):
             if mask & k:
                 self.fire(v(name, path, pathname, dir))
 
-    def add_path(self, path, mask=None, recursive=False):
+    def add_path(self, path, mask=None, recursive=False, auto_add=True):
         mask = mask or MASK
-        self._wm.add_watch(path, mask, rec=recursive)
+        self._wm.add_watch(path, mask, rec=recursive, auto_add=auto_add)
 
     def remove_path(self, path, recursive=False):
         wd = self._wm.get_wd(path)

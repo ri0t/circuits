@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-
 from json import dumps
 
-from circuits.web import Server, Controller
+from circuits.web import Controller, Server
 
 
 def json(f):
@@ -16,6 +15,7 @@ class Root(Controller):
     @json
     def getrange(self, limit=4):
         return list(range(int(limit)))
+
 
 app = Server(("0.0.0.0", 8000))
 Root().register(app)

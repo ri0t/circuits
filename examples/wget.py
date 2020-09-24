@@ -1,18 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-
 """wget Example
 
 A basic wget-like clone that asynchronously connections
 a remote web server requesting a given resource.
 """
-
-
 from __future__ import print_function
 
 import sys
-
 
 from circuits import Component
 from circuits.web.client import Client, request

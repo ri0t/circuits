@@ -1,14 +1,12 @@
 #!/usr/bin/env python
-
 import pytest
+
+from circuits.web import Controller
 
 try:
     from httplib import HTTPConnection
 except ImportError:
     from http.client import HTTPConnection  # NOQA
-
-
-from circuits.web import Controller
 
 
 class Root(Controller):

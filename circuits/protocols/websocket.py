@@ -2,14 +2,13 @@
 
 .. codeauthor: mnl
 """
-
 import os
 import random
 
-from circuits.six import string_types
-from circuits.core.handlers import handler
 from circuits.core.components import BaseComponent
-from circuits.net.events import write, read, close
+from circuits.core.handlers import handler
+from circuits.net.events import close, read, write
+from circuits.six import string_types
 
 
 class WebSocketCodec(BaseComponent):
@@ -49,6 +48,7 @@ class WebSocketCodec(BaseComponent):
         self._pending_type = None
         self._close_received = False
         self._close_sent = False
+        self._buffer = bytearray()
 
         messages = self._parse_messages(bytearray(data))
         for message in messages:
@@ -90,6 +90,7 @@ class WebSocketCodec(BaseComponent):
         msgs = []  # one chunk of bytes may result in several messages
         if self._close_received:
             return msgs
+        data = self._buffer + data
         while data:
             # extract final flag, opcode and masking
             final = bool(data[0] & 0x80 != 0)
@@ -111,7 +112,9 @@ class WebSocketCodec(BaseComponent):
                 offset += 4
             # if not enough bytes available yet, retry after next read
             if len(data) - offset < payload_length:
+                self._buffer = data
                 break
+            self._buffer = bytearray()
             # rest of _buffer is payload
             msg = data[offset:offset + payload_length]
             if masking:  # unmask

@@ -1,19 +1,14 @@
 #!/usr/bin/env python
-
-
 """An implementation of the Python Concurrency Problem of 99 Bottles of Beer
 
 See: http://wiki.python.org/moin/Concurrency/99Bottles
 """
-
-
 from __future__ import print_function
 
 import sys
 
-
-from circuits.io import File
 from circuits import Component
+from circuits.io import File
 from circuits.protocols import Line
 
 

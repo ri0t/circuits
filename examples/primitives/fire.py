@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 from circuits import Component, Event
 
 
@@ -34,5 +33,6 @@ class App(Component):
     def started(self, component):
         self.fire(hello())
         self.stop()
+
 
 App().run()

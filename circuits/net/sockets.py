@@ -2,24 +2,37 @@
 
 This module contains various Socket Components for use with Networking.
 """
-
 import os
 import select
-from time import time
 from collections import defaultdict, deque
-
-from errno import EAGAIN, EALREADY, EBADF
-from errno import ECONNABORTED, EINPROGRESS, EINTR, EISCONN, EMFILE, ENFILE
-from errno import ENOBUFS, ENOMEM, ENOTCONN, EPERM, EPIPE, EINVAL, EWOULDBLOCK
+from errno import (
+    EAGAIN, EALREADY, EBADF, ECONNABORTED, EINPROGRESS, EINTR, EINVAL, EISCONN,
+    EMFILE, ENFILE, ENOBUFS, ENOMEM, ENOTCONN, EPERM, EPIPE, EWOULDBLOCK,
+)
+from socket import (
+    AF_INET, AF_INET6, IPPROTO_IP, IPPROTO_TCP, SO_BROADCAST, SO_REUSEADDR,
+    SOCK_DGRAM, SOCK_STREAM, SOL_SOCKET, TCP_NODELAY, error as SocketError,
+    gaierror, getaddrinfo, getfqdn, gethostbyname, gethostname, socket,
+)
+from time import time
 
 from _socket import socket as SocketType
 
-from socket import gaierror
-from socket import error as SocketError
-from socket import getfqdn, gethostbyname, socket, getaddrinfo, gethostname
+from circuits.core import BaseComponent, handler
+from circuits.core.pollers import BasePoller, Poller
+from circuits.core.utils import findcmp
+from circuits.six import binary_type
 
-from socket import AF_INET, AF_INET6, IPPROTO_TCP, SOCK_STREAM, SOCK_DGRAM
-from socket import SOL_SOCKET, SO_BROADCAST, SO_REUSEADDR, TCP_NODELAY
+from .events import (
+    close, closed, connect, connected, disconnect, disconnected, error, read,
+    ready, unreachable, write,
+)
+
+try:
+    from socket import AF_UNIX
+except ImportError:
+    AF_UNIX = None
+
 
 try:
     from ssl import wrap_socket as ssl_socket
@@ -31,15 +44,8 @@ except ImportError:
     import warnings
     warnings.warn("No SSL support available.")
     HAS_SSL = 0
-
-
-from circuits.six import binary_type
-from circuits.core.utils import findcmp
-from circuits.core import handler, BaseComponent
-from circuits.core.pollers import BasePoller, Poller
-
-from .events import close, closed, connect, connected, disconnect, \
-    disconnected, error, read, ready, write, unreachable
+    CERT_NONE = None
+    PROTOCOL_SSLv23 = None
 
 
 BUFSIZE = 4096  # 4KB Buffer
@@ -79,6 +85,11 @@ def do_handshake(sock, on_done=None, on_error=None, extra_args=None):
 class Client(BaseComponent):
 
     channel = "client"
+
+    socket_family = AF_INET
+    socket_type = SOCK_STREAM
+    socket_protocol = IPPROTO_IP
+    socket_options = []
 
     def __init__(self, bind=None, bufsize=BUFSIZE, channel=channel, **kwargs):
         super(Client, self).__init__(channel=channel, **kwargs)
@@ -155,6 +166,9 @@ class Client(BaseComponent):
 
         try:
             self._sock.shutdown(2)
+        except SocketError:
+            pass
+        try:
             self._sock.close()
         except SocketError:
             pass
@@ -170,15 +184,15 @@ class Client(BaseComponent):
 
     def _read(self):
         try:
-            if self.secure and self._ssock:
-                data = self._ssock.read(self._bufsize)
-            else:
-                try:
+            try:
+                if self.secure and self._ssock:
+                    data = self._ssock.read(self._bufsize)
+                else:
                     data = self._sock.recv(self._bufsize)
-                except SSLError as exc:
-                    if exc.errno in (SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE):
-                        return
-                    raise
+            except SSLError as exc:
+                if exc.errno in (SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE):
+                    return
+                raise
 
             if data:
                 self.fire(read(data)).notify = True
@@ -232,23 +246,28 @@ class Client(BaseComponent):
             elif self._poller.isWriting(self._sock):
                 self._poller.removeWriter(self._sock)
 
+    def _create_socket(self):
+        sock = socket(self.socket_family, self.socket_type, self.socket_protocol)
+
+        for option in self.socket_options:
+            sock.setsockopt(*option)
+        sock.setblocking(False)
+        if self._bind is not None:
+            sock.bind(self._bind)
+        return sock
+
 
 class TCPClient(Client):
 
     socket_family = AF_INET
+    socket_type = SOCK_STREAM
+    socket_protocol = IPPROTO_TCP
+    socket_options = [
+        (IPPROTO_TCP, TCP_NODELAY, 1),
+    ]
 
     def init(self, connect_timeout=5, *args, **kwargs):
         self.connect_timeout = connect_timeout
-
-    def _create_socket(self):
-        sock = socket(self.socket_family, SOCK_STREAM, IPPROTO_TCP)
-        if self._bind is not None:
-            sock.bind(self._bind)
-
-        sock.setblocking(False)
-        sock.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
-
-        return sock
 
     @handler("connect")  # noqa
     def connect(self, host, port, secure=False, **kwargs):
@@ -321,16 +340,9 @@ class TCP6Client(TCPClient):
 
 class UNIXClient(Client):
 
-    def _create_socket(self):
-        from socket import AF_UNIX
-
-        sock = socket(AF_UNIX, SOCK_STREAM)
-        if self._bind is not None:
-            sock.bind(self._bind)
-
-        sock.setblocking(False)
-
-        return sock
+    socket_family = AF_UNIX
+    socket_type = SOCK_STREAM
+    socket_options = []
 
     @handler("ready")
     def ready(self, component):
@@ -386,11 +398,13 @@ class UNIXClient(Client):
 class Server(BaseComponent):
 
     channel = "server"
+    socket_protocol = IPPROTO_IP
 
     def __init__(self, bind, secure=False, backlog=BACKLOG,
                  bufsize=BUFSIZE, channel=channel, **kwargs):
         super(Server, self).__init__(channel=channel)
 
+        self.socket_options = self.socket_options[:] + kwargs.get('socket_options', [])
         self._bind = self.parse_bind_parameter(bind)
 
         self._backlog = backlog
@@ -406,18 +420,16 @@ class Server(BaseComponent):
         self._poller = None
         self._buffers = defaultdict(deque)
 
-        self.secure = secure
+        self.__starttls = set()
 
-        if self.secure:
-            try:
-                self.certfile = kwargs["certfile"]
-            except KeyError:
-                raise RuntimeError(
-                    "certfile must be specified for server-side operations")
-            self.keyfile = kwargs.get("keyfile", None)
-            self.cert_reqs = kwargs.get("cert_reqs", CERT_NONE)
-            self.ssl_version = kwargs.get("ssl_version", PROTOCOL_SSLv23)
-            self.ca_certs = kwargs.get("ca_certs", None)
+        self.secure = secure
+        self.certfile = kwargs.get("certfile")
+        self.keyfile = kwargs.get("keyfile", None)
+        self.cert_reqs = kwargs.get("cert_reqs", CERT_NONE)
+        self.ssl_version = kwargs.get("ssl_version", PROTOCOL_SSLv23)
+        self.ca_certs = kwargs.get("ca_certs", None)
+        if self.secure and not self.certfile:
+            raise RuntimeError("certfile must be specified for server-side operations")
 
     def parse_bind_parameter(self, bind_parameter):
         return parse_ipv4_parameter(bind_parameter)
@@ -495,8 +507,14 @@ class Server(BaseComponent):
         else:
             self._sock = None
 
+        if sock in self.__starttls:
+            self.__starttls.remove(sock)
+
         try:
             sock.shutdown(2)
+        except SocketError:
+            pass
+        try:
             sock.close()
         except SocketError:
             pass
@@ -560,20 +578,7 @@ class Server(BaseComponent):
             self._poller.addWriter(self, sock)
         self._buffers[sock].append(data)
 
-    def _accept(self):  # noqa
-        # XXX: C901: This has a high McCacbe complexity score of 10.
-        # TODO: Refactor this!
-
-        def on_done(sock, host):
-            sock.setblocking(False)
-            self._poller.addReader(self, sock)
-            self._clients.append(sock)
-            self.fire(connect(sock, *host))
-
-        def on_error(sock, err):
-            self.fire(error(sock, err))
-            self._close(sock)
-
+    def _accept(self):
         try:
             newsock, host = self._sock.accept()
         except SocketError as e:
@@ -603,21 +608,52 @@ class Server(BaseComponent):
                 raise
 
         if self.secure and HAS_SSL:
-            sslsock = ssl_socket(
-                newsock,
-                server_side=True,
-                keyfile=self.keyfile,
-                ca_certs=self.ca_certs,
-                certfile=self.certfile,
-                cert_reqs=self.cert_reqs,
-                ssl_version=self.ssl_version,
-                do_handshake_on_connect=False
-            )
-
-            for _ in do_handshake(sslsock, on_done, on_error, extra_args=(host,)):
+            for _ in self._do_handshake(newsock):
                 yield
         else:
-            on_done(newsock, host)
+            self._on_accept_done(newsock)
+
+    def _do_handshake(self, sock, fire_connect_event=True):
+        sslsock = ssl_socket(
+            sock,
+            server_side=True,
+            keyfile=self.keyfile,
+            ca_certs=self.ca_certs,
+            certfile=self.certfile,
+            cert_reqs=self.cert_reqs,
+            ssl_version=self.ssl_version,
+            do_handshake_on_connect=False
+        )
+
+        for _ in do_handshake(sslsock, self._on_accept_done, self._on_handshake_error, (fire_connect_event,)):
+            yield _
+
+    def _on_accept_done(self, sock, fire_connect_event=True):
+        sock.setblocking(False)
+        self._poller.addReader(self, sock)
+        self._clients.append(sock)
+        if fire_connect_event:
+            try:
+                self.fire(connect(sock, *sock.getpeername()))
+            except SocketError as exc:
+                # errno 107 (ENOTCONN): the client already disconnected
+                self._on_handshake_error(sock, exc)
+
+    def _on_handshake_error(self, sock, err):
+        self.fire(error(sock, err))
+        self._close(sock)
+
+    @handler('starttls')
+    def starttls(self, sock):
+        if not HAS_SSL:
+            raise RuntimeError('Cannot start TLS. No TLS support.')
+        if sock in self.__starttls:
+            raise RuntimeError('Cannot reuse socket for already started STARTTLS.')
+        self.__starttls.add(sock)
+        self._poller.removeReader(sock)
+        self._clients.remove(sock)
+        for _ in self._do_handshake(sock, False):
+            yield
 
     @handler("_disconnect", priority=1)
     def _on_disconnect(self, sock):
@@ -643,18 +679,28 @@ class Server(BaseComponent):
             elif self._poller.isWriting(sock):
                 self._poller.removeWriter(sock)
 
+    def _create_socket(self):
+        sock = socket(self.socket_family, self.socket_type, self.socket_protocol)
+
+        for option in self.socket_options:
+            sock.setsockopt(*option)
+        sock.setblocking(False)
+        if self._bind is not None:
+            sock.bind(self._bind)
+        return sock
+
 
 class TCPServer(Server):
 
     socket_family = AF_INET
+    socket_type = SOCK_STREAM
+    socket_options = [
+        (SOL_SOCKET, SO_REUSEADDR, 1),
+        (IPPROTO_TCP, TCP_NODELAY, 1),
+    ]
 
     def _create_socket(self):
-        sock = socket(self.socket_family, SOCK_STREAM)
-
-        sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        sock.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
-        sock.setblocking(False)
-        sock.bind(self._bind)
+        sock = super(TCPServer, self)._create_socket()
         sock.listen(self._backlog)
 
         return sock
@@ -702,17 +748,17 @@ class TCP6Server(TCPServer):
 
 class UNIXServer(Server):
 
-    def _create_socket(self):
-        from socket import AF_UNIX
+    socket_family = AF_UNIX
+    socket_type = SOCK_STREAM
+    socket_options = [
+        (SOL_SOCKET, SO_REUSEADDR, 1),
+    ]
 
+    def _create_socket(self):
         if os.path.exists(self._bind):
             os.unlink(self._bind)
 
-        sock = socket(AF_UNIX, SOCK_STREAM)
-        sock.bind(self._bind)
-
-        sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        sock.setblocking(False)
+        sock = super(UNIXServer, self)._create_socket()
         sock.listen(self._backlog)
 
         return sock
@@ -721,18 +767,11 @@ class UNIXServer(Server):
 class UDPServer(Server):
 
     socket_family = AF_INET
-
-    def _create_socket(self):
-        sock = socket(self.socket_family, SOCK_DGRAM)
-
-        sock.bind(self._bind)
-
-        sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-        sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-
-        sock.setblocking(False)
-
-        return sock
+    socket_type = SOCK_DGRAM
+    socket_options = [
+        (SOL_SOCKET, SO_BROADCAST, 1),
+        (SOL_SOCKET, SO_REUSEADDR, 1)
+    ]
 
     def _close(self, sock):
         self._poller.discard(sock)

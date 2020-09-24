@@ -29,10 +29,9 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
 # OF THIS SOFTWARE.
 # --------------------------------------------------------------------
-
-import sys
-import json
 import base64
+import json
+import sys
 
 PY3 = sys.version_info[0] == 3
 

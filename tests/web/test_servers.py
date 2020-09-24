@@ -1,26 +1,34 @@
 #!/usr/bin/env python
-
-import pytest
-if pytest.PYVER < (2, 7):
-    pytest.skip("This test requires Python=>2.7")
-
-from os import path
-from socket import gaierror
+import os
 import ssl
 import sys
+import tempfile
+from os import path
+from socket import gaierror
 
-from circuits.web import Controller
-from circuits import handler, Component
-from circuits.web import BaseServer, Server
+import pytest
+from pytest import fixture
 
-from .helpers import urlopen, URLError
+from circuits import Component
+from circuits.web import BaseServer, Controller, Server
+
+from .helpers import URLError, urlopen
 
 CERTFILE = path.join(path.dirname(__file__), "cert.pem")
+
 
 # self signed cert
 if pytest.PYVER >= (2, 7, 9):
     SSL_CONTEXT = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
     SSL_CONTEXT.verify_mode = ssl.CERT_NONE
+
+
+@fixture
+def tmpfile(request):
+    tmpdir = tempfile.mkdtemp()
+    filename = os.path.join(tmpdir, "test.sock")
+
+    return filename
 
 
 class BaseRoot(Component):
@@ -39,8 +47,9 @@ class Root(Controller):
 
 class MakeQuiet(Component):
 
-    @handler("ready", channel="*", priority=1.0)
-    def _on_ready(self, event, *args):
+    channel = "web"
+
+    def ready(self, event, *args):
         event.stop()
 
 
@@ -117,20 +126,29 @@ def test_secure_server(manager, watcher):
     watcher.wait("unregistered")
 
 
-def test_unixserver(manager, watcher, tmpdir):
+def test_unixserver(manager, watcher, tmpfile):
     if pytest.PLATFORM == "win32":
         pytest.skip("Unsupported Platform")
 
-    sockpath = tmpdir.ensure("test.sock")
-    socket = str(sockpath)
-
-    server = Server(socket).register(manager)
+    server = Server(tmpfile).register(manager)
     MakeQuiet().register(server)
-    watcher.wait("ready")
+    assert watcher.wait("ready")
 
     Root().register(server)
 
     assert path.basename(server.host) == "test.sock"
+
+    try:
+        from uhttplib import UnixHTTPConnection
+
+        client = UnixHTTPConnection(server.http.base)
+        client.request("GET", "/")
+        response = client.getresponse()
+        s = response.read()
+
+        assert s == b"Hello World!"
+    except ImportError:
+        pass
 
     server.unregister()
     watcher.wait("unregistered")

@@ -1,14 +1,14 @@
 """py.test config"""
 
-import pytest
-
 import sys
 import threading
-from time import sleep
 from collections import deque
+from time import sleep
 
+import pytest
+
+from circuits import BaseComponent, Debugger, Manager, handler
 from circuits.core.manager import TIMEOUT
-from circuits import handler, BaseComponent, Debugger, Manager
 
 
 class Watcher(BaseComponent):
@@ -104,9 +104,9 @@ def watcher(request, manager):
     return watcher
 
 
-def pytest_namespace():
-    return dict((
-        ("WaitEvent", WaitEvent),
-        ("PLATFORM", sys.platform),
-        ("PYVER", sys.version_info[:3]),
-    ))
+for key, value in dict((
+    ("WaitEvent", WaitEvent),
+    ("PLATFORM", sys.platform),
+    ("PYVER", sys.version_info[:3]),
+)).items():
+    setattr(pytest, key, value)

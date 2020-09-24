@@ -10,7 +10,8 @@ wheel
 # Running Tests
 tox
 pytest
-coveralls
+uhttplib
+codecov
 pytest-cov
 
 # Generating Documentation

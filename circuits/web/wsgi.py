@@ -2,28 +2,22 @@
 
 This module implements WSGI Components.
 """
-
-try:
-    from urllib.parse import unquote
-except ImportError:
-    from urllib import unquote  # NOQA
-
 from operator import itemgetter
+from sys import exc_info as _exc_info
 from traceback import format_tb
 from types import GeneratorType
-from sys import exc_info as _exc_info
 
+from circuits.core import BaseComponent, handler
 from circuits.tools import tryimport
-from circuits.core import handler, BaseComponent
+from circuits.web import wrappers
 
-StringIO = tryimport(("cStringIO", "StringIO", "io"), "StringIO")
-
-from .http import HTTP
+from .dispatchers import Dispatcher
+from .errors import httperror
 from .events import request
 from .headers import Headers
-from .errors import httperror
-from circuits.web import wrappers
-from .dispatchers import Dispatcher
+from .http import HTTP
+
+StringIO = tryimport(("cStringIO", "StringIO", "io"), "StringIO")
 
 
 def create_environ(errors, path, req):
@@ -113,7 +107,7 @@ class Application(BaseComponent):
         except:
             cl = 0
 
-        req.body.write(env("wsgi.input").read(cl))
+        req.body.write(env("wsgi.input").read(cl))  # FIXME: what about chunked encoding?
         req.body.seek(0)
 
         res = wrappers.Response(req)
@@ -138,7 +132,7 @@ class Application(BaseComponent):
         return body
 
     @handler("response", channel="web")
-    def response(self, event, response):
+    def on_response(self, event, response):
         self._finished = True
         event.stop()
 
@@ -161,6 +155,7 @@ class _Empty(str):
         return True
 
     __nonzero__ = __bool__
+
 
 empty = _Empty()
 del _Empty
@@ -209,7 +204,8 @@ class Gateway(BaseComponent):
         try:
             body = app(environ, start_response)
             if isinstance(body, list):
-                body = "".join(body)
+                _body = type(body[0])() if body else ""
+                body = _body.join(body)
             elif isinstance(body, GeneratorType):
                 res.body = body
                 res.stream = True

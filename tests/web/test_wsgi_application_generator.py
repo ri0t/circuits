@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 from circuits.web import Controller
 from circuits.web.wsgi import Application
 
@@ -13,6 +12,7 @@ class Root(Controller):
             yield "Hello "
             yield "World!"
         return response()
+
 
 application = Application() + Root()
 

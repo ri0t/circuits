@@ -1,18 +1,16 @@
 #!/usr/bin/env python
-
-
 from __future__ import print_function
 
-from pytest import PLATFORM, skip, fixture
+from time import sleep
 
-if PLATFORM == 'win32':
-    skip('Broken on Windows')
+import pytest
 
-
-from circuits import Event, Component
+from circuits import Component, Event
 from circuits.net.events import close
 from circuits.net.sockets import UDPServer
 from circuits.node import Node
+
+pytestmark = pytest.mark.skipif(pytest.PLATFORM == 'win32', reason='Broken on Windows')
 
 
 class return_value(Event):
@@ -25,7 +23,7 @@ class App(Component):
         print('Hello client!', event.channels)
 
 
-@fixture()
+@pytest.fixture()
 def bind(manager, watcher):
     server = UDPServer(0).register(manager)
     assert watcher.wait('ready', channel='server')
@@ -41,7 +39,7 @@ def bind(manager, watcher):
     return host, port
 
 
-@fixture()
+@pytest.fixture()
 def app(manager, watcher, bind):
     server = Node(port=bind[1], server_ip=bind[0])
     server.register(manager)
@@ -57,25 +55,25 @@ def test_auto_reconnect(app, watcher, manager):
     node = Node().register(client)
     chan = node.add('client1', *app.bind, reconnect_delay=1, connect_timeout=1)
     assert watcher.wait('connected', channel=chan)
+    watcher.clear()
 
     # close server
     app.fire(close(), app.channel)
     assert watcher.wait('closed', channel=app.channel)
+    watcher.clear()
 
-    app.unregister()
-    assert watcher.wait('unregistered', channel=app.channel)
+    # client gets an unreachable
+    assert watcher.wait('connect', channel=chan)
+    assert watcher.wait('unreachable', channel=chan)
+    watcher.clear()
 
-    for _ in range(5):
-        watcher.clear()
-        assert watcher.wait('connect', channel=chan)
-        assert watcher.wait('unreachable', channel=chan)
+    # start a new server
+    node2 = Node(port=app.bind[1], server_ip=app.bind[0])
+    node2.register(manager)
+    assert watcher.wait('ready', channel=node2.channel)
+    watcher.clear()
 
-    # open server
-    app = Node(port=app.bind[1], server_ip=app.bind[0])
-    app.register(manager)
-
-    assert watcher.wait('registered', channel=app.channel)
-    assert watcher.wait('connected_to', channel=app.channel)
+    assert watcher.wait('connected', channel=chan)
 
     client.unregister()
 
@@ -113,8 +111,6 @@ def test_server_send(app, watcher, manager):
     event = return_value()
     app.server.send(event, app.server.get_socks()[0], no_result=True)
     assert watcher.wait('return_value')
-    watcher.clear()
-    assert not watcher.wait('return_value')
 
     client1.unregister()
     client2.unregister()
@@ -125,28 +121,29 @@ def test_server_send_multicast(app, watcher, manager):
     node1 = Node().register(client1)
     chan1 = node1.add('client1', *app.bind)
     assert watcher.wait('connected', channel=chan1)
+    watcher.clear()
 
     client2 = App().register(manager)
     node2 = Node().register(client2)
     chan2 = node2.add('client2', *app.bind)
     assert watcher.wait('connected', channel=chan2)
+    watcher.clear()
 
     client3 = App().register(manager)
     node3 = Node().register(client3)
     chan3 = node3.add('client3', *app.bind)
     assert watcher.wait('connected', channel=chan3)
+    watcher.clear()
 
     event = return_value()
-    app.server.send_to(event, app.server.get_socks()[:2])
+    app.server.send_to(event, app.server.get_socks())
     assert watcher.wait('return_value')
 
-    event_cnt = 0
-    with watcher._lock:
-        for event in watcher.events:
-            if event.name == 'return_value':
-                event_cnt += 1
-
-    assert event_cnt == 2
+    for _ in range(3):
+        if watcher.count("return_value") == 3:
+            break
+        sleep(1)
+    assert watcher.count("return_value") == 3
 
     client1.unregister()
     client2.unregister()

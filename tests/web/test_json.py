@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-
 from json import loads
 
 from circuits.web import JSONController, Sessions
 
-from .helpers import urlopen, build_opener, HTTPCookieProcessor
-from .helpers import CookieJar
+from .helpers import CookieJar, HTTPCookieProcessor, build_opener, urlopen
 
 
 class Root(JSONController):
@@ -15,7 +13,8 @@ class Root(JSONController):
 
     def test_sessions(self, name=None):
         if name:
-            self.session["name"] = name
+            with self.session as data:
+                data["name"] = name
         else:
             name = self.session.get("name", "World!")
 

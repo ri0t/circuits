@@ -2,7 +2,6 @@
 
 This module implements commonly used Networking events used by socket components.
 """
-
 from circuits.core import Event
 
 
@@ -244,3 +243,21 @@ class closed(Event):
     .. note::
         This event is for Server components.
     """
+
+
+class starttls(Event):
+
+    """starttls Event
+
+    This event can be fired to upgrade the socket connection to a TLS
+    secured connection.
+
+    .. note::
+        This event is currently only available for Server Components.
+
+    :param sock: The client socket where to start TLS.
+    :type sock: socket.socket
+    """
+
+    def __init__(self, sock):
+        super(starttls, self).__init__(sock)

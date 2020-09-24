@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 from circuits import Component
 from circuits.web import BaseServer
 
@@ -16,6 +15,7 @@ class Root(Component):
         """
 
         return "Hello World!"
+
 
 app = BaseServer(("0.0.0.0", 8000))
 Root().register(app)

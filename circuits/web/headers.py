@@ -2,9 +2,9 @@
 
 This module implements support for parsing and handling headers.
 """
-
 import re
-from circuits.six import iteritems, u, b
+
+from circuits.six import b, iteritems, u
 
 # Regular expression that matches `special' characters in parameters, the
 # existance of which force quoting of the parameter value.
@@ -243,9 +243,9 @@ class Headers(CaseInsensitiveDict):
         for k, v in super(Headers, self).items():
             if isinstance(v, list):
                 for vv in v:
-                    yield (k, vv)
+                    yield (str(k), str(vv))
             else:
-                yield (k, v)
+                yield (str(k), str(v))
 
     def __bytes__(self):
         return str(self).encode("latin1")

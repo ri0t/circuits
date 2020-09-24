@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-
 import pytest
 
-from circuits import handler, Event, Manager
+from circuits import Event, Manager, handler
 
 
 class foo(Event):

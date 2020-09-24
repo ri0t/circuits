@@ -1,15 +1,10 @@
 #!/usr/bin/env python
-
-
 """circuits Signal Handling
 
 A modified version of the circuits Hello World example to demonstrate
 how to customize signal handling and cause a delayed system terminate.
 """
-
-
 from __future__ import print_function
-
 
 from circuits import Component, Debugger, Event, Timer
 

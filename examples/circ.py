@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-
-
 """Circuits IRC Client
 
 A circuits based IRC Client demonstrating integration with urwid - a curses
@@ -13,31 +11,23 @@ For usage type:
 
    ./circ.py --help
 """
-
-
 import os
 import sys
-from select import select
-from inspect import getargspec
-from socket import gethostname
 from optparse import OptionParser
 from re import compile as compile_regex
+from select import select
+from socket import gethostname
 
-
-from circuits import handler, Component
-from circuits import __version__ as systemVersion
-from circuits.net.sockets import TCPClient, connect
-
-from circuits.protocols.irc import (
-    request, Message,
-    IRC, RPL_ENDOFMOTD,
-    ERR_NICKNAMEINUSE, ERR_NOMOTD,
-    QUIT, PART, PRIVMSG, USER, NICK, JOIN
-)
-
-from urwid.raw_display import Screen
 from urwid import AttrWrap, Edit, Frame, ListBox, Pile, SimpleListWalker, Text
+from urwid.raw_display import Screen
 
+from circuits import Component, __version__ as systemVersion, handler
+from circuits.net.sockets import TCPClient, connect
+from circuits.tools import getargspec
+from circuits.protocols.irc import (
+    ERR_NICKNAMEINUSE, ERR_NOMOTD, IRC, JOIN, NICK, PART, PRIVMSG, QUIT,
+    RPL_ENDOFMOTD, USER, Message, request,
+)
 
 USAGE = "%prog [options] host [port]"
 VERSION = "%prog v" + systemVersion
@@ -327,6 +317,7 @@ def main():
         Debugger(file=sys.stderr).register(client)
 
     client.run()
+
 
 if __name__ == "__main__":
     main()

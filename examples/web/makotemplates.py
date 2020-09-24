@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-
 import os
 
 import mako
 from mako.lookup import TemplateLookup
 
-from circuits.web import Server, Controller, Static
+from circuits.web import Controller, Server, Static
 
 DEFAULTS = {}
 
@@ -35,6 +34,7 @@ class Root(Controller):
     def submit(self, firstName, lastName):
         msg = "Thank you %s %s" % (firstName, lastName)
         return render(self.tpl, message=msg)
+
 
 app = Server(("0.0.0.0", 8000))
 Static().register(app)

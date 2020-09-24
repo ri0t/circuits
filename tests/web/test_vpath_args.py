@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-
-from circuits.web import expose, Controller
+from circuits.web import Controller, expose
 
 from .helpers import urlopen
 

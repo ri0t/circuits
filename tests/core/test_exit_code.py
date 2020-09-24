@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-
-
 import sys
-from subprocess import Popen, PIPE
+from subprocess import PIPE, Popen
+
 from circuits.six import b
 
 from . import exitcodeapp

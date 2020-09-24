@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-
-
 """Example IRC Server
 
 .. note:: This is an example only and is feature incomplete.
@@ -9,33 +7,25 @@ Implements commands::
 
     USER NICK JOIN PART NICK WHO QUIT
 """
-
-
 import logging
-from logging import getLogger
-
-from time import time
-from sys import stderr
-from itertools import chain
-from operator import attrgetter
-from collections import defaultdict
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
+from collections import defaultdict
+from itertools import chain
+from logging import getLogger
+from operator import attrgetter
+from sys import stderr
+from time import time
 
-
-from circuits import handler, Component, Debugger
-
-from circuits.net.sockets import TCPServer
+from circuits import Component, Debugger, handler
 from circuits.net.events import close, write
-
-from circuits.protocols.irc import joinprefix, reply, response, IRC, Message
-
+from circuits.net.sockets import TCPServer
+from circuits.protocols.irc import IRC, Message, joinprefix, reply, response
 from circuits.protocols.irc.replies import (
-    ERR_NOMOTD, ERR_NOSUCHNICK, ERR_NOSUCHCHANNEL, ERR_UNKNOWNCOMMAND,
-    RPL_WELCOME, RPL_YOURHOST, RPL_WHOREPLY, RPL_ENDOFWHO, RPL_NOTOPIC,
-    RPL_NAMEREPLY, RPL_ENDOFNAMES,
-    ERR_NICKNAMEINUSE,
+    ERR_NICKNAMEINUSE, ERR_NOMOTD, ERR_NOSUCHCHANNEL, ERR_NOSUCHNICK,
+    ERR_UNKNOWNCOMMAND, RPL_ENDOFNAMES, RPL_ENDOFWHO, RPL_NAMEREPLY,
+    RPL_NOTOPIC, RPL_TOPIC, RPL_WELCOME, RPL_WHOREPLY, RPL_YOURHOST,
+    RPL_CHANNELMODEIS, RPL_LISTSTART, RPL_LIST, RPL_LISTEND,
 )
-
 
 __version__ = "0.0.1"
 
@@ -73,6 +63,8 @@ class Channel(object):
 
     def __init__(self, name):
         self.name = name
+        self.topic = None
+        self.mode = '+n'
 
         self.users = []
 
@@ -85,6 +77,7 @@ class User(object):
         self.port = port
 
         self.nick = None
+        self.mode = ''
         self.away = False
         self.channels = []
         self.signon = None
@@ -190,7 +183,7 @@ class Server(Component):
         user, host = user.userinfo.user, user.userinfo.host
 
         yield self.call(
-            response.create("quit", sock, (nick, user, host), "Leavling")
+            response.create("quit", sock, (nick, user, host), "Leaving")
         )
 
         del self.users[sock]
@@ -273,9 +266,12 @@ class Server(Component):
             Message("JOIN", name, prefix=user.prefix)
         )
 
-        self.fire(reply(sock, RPL_NOTOPIC(name)))
-        self.fire(reply(sock, RPL_NAMEREPLY(channel)))
-        self.fire(reply(sock, RPL_ENDOFNAMES()))
+        if channel.topic:
+            self.fire(reply(sock, RPL_TOPIC(channel.topic)))
+        else:
+            self.fire(reply(sock, RPL_NOTOPIC(channel.name)))
+        self.fire(reply(sock, RPL_NAMEREPLY(channel.name, [u.prefix for u in channel.users])))
+        self.fire(reply(sock, RPL_ENDOFNAMES(channel.name)))
 
     def part(self, sock, source, name, reason="Leaving"):
         user = self.users[sock]
@@ -351,6 +347,22 @@ class Server(Component):
             message.prefix = self.host
 
         self.fire(write(target, bytes(message)))
+
+    def mode(self, sock, source, mask, mode=None, params=None):
+        if mask.startswith('#'):
+            if mask not in self.channels:
+                return self.fire(reply(sock, ERR_NOSUCHCHANNEL(mask)))
+            channel = self.channels[mask]
+            if not params:
+                self.fire(reply(sock, RPL_CHANNELMODEIS(channel.name, channel.mode)))
+        elif mask not in self.users:
+            return self.fire(reply(sock, ERR_NOSUCHNICK(mask)))
+
+    def list(self, sock, source):
+        self.fire(reply(sock, RPL_LISTSTART()))
+        for channel in self.channels.values():
+            self.fire(reply(sock, RPL_LIST(channel, str(len(channel.users)), channel.topic or '')))
+        self.fire(reply(sock, RPL_LISTEND()))
 
     @property
     def commands(self):

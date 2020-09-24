@@ -1,9 +1,8 @@
 """
 This module define the @handler decorator/function and the HandlesType type.
 """
-
-from inspect import getargspec
 from collections import Callable
+from circuits.tools import getargspec
 
 
 def handler(*names, **kwargs):
@@ -124,4 +123,7 @@ class HandlerMetaClass(type):
         callables = (x for x in ns.items() if isinstance(x[1], Callable))
         for name, callable in callables:
             if not (name.startswith("_") or hasattr(callable, "handler")):
-                setattr(cls, name, handler(name)(callable))
+                try:
+                    setattr(cls, name, handler(name)(callable))
+                except ValueError as e:
+                    raise ValueError('{} - {} {}'.format(str(e), repr(cls), name))

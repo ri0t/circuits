@@ -1,24 +1,18 @@
 #!/usr/bin/env python
+import os
+import select
+import sys
+import tempfile
 
 import pytest
 from pytest import fixture
 
-
-import os
-import sys
-import tempfile
-import select
-
-
 from circuits import Manager
-from circuits.net.sockets import close, connect, write
-from circuits.net.sockets import UNIXServer, UNIXClient
-from circuits.core.pollers import Select, Poll, EPoll, KQueue
-
+from circuits.core.pollers import EPoll, KQueue, Poll, Select
+from circuits.net.sockets import UNIXClient, UNIXServer, close, connect, write
 
 from .client import Client
 from .server import Server
-
 
 if sys.platform in ("win32", "cygwin"):
     pytest.skip("Test Not Applicable on Windows")
@@ -33,16 +27,17 @@ def tmpfile(request):
 
 
 def pytest_generate_tests(metafunc):
-    metafunc.addcall(funcargs={"Poller": Select})
+    poller = [Select]
 
     if hasattr(select, "poll"):
-        metafunc.addcall(funcargs={"Poller": Poll})
+        poller.append(Poll)
 
     if hasattr(select, "epoll"):
-        metafunc.addcall(funcargs={"Poller": EPoll})
+        poller.append(EPoll)
 
     if hasattr(select, "kqueue"):
-        metafunc.addcall(funcargs={"Poller": KQueue})
+        poller.append(KQueue)
+    metafunc.parametrize('Poller', poller)
 
 
 def test_unix(tmpfile, Poller):

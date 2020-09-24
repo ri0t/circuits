@@ -2,34 +2,34 @@
 
 This module implements the Request and Response objects.
 """
-
-
-from time import time
-from io import BytesIO
 from functools import partial
+from io import BytesIO
+from time import time
+
+from circuits.net.sockets import BUFSIZE
+from circuits.six import binary_type, text_type
+
+from .constants import HTTP_STATUS_CODES, SERVER_VERSION
+from .errors import httperror
+from .headers import Headers
+from .url import parse_url
 
 try:
     from Cookie import SimpleCookie
 except ImportError:
     from http.cookies import SimpleCookie  # NOQA
 
-from .url import parse_url
-from .headers import Headers
-from ..six import binary_type
-from .errors import httperror
-from circuits.net.sockets import BUFSIZE
-from .constants import HTTP_STATUS_CODES, SERVER_VERSION
+try:
+    from email.utils import formatdate
+    formatdate = partial(formatdate, usegmt=True)
+except ImportError:
+    from rfc822 import formatdate  # NOQA
+
 
 try:
     unicode
 except NameError:
     unicode = str
-
-try:
-    from email.utils import formatdate
-    formatdate = partial(formatdate, usegmt=True)
-except ImportError:
-    from rfc822 import formatdate as HTTPDate  # NOQA
 
 
 def file_generator(input, chunkSize=BUFSIZE):
@@ -176,11 +176,12 @@ class Request(object):
 
         if sock is not None:
             name = sock.getpeername()
-            if name is not None:
-                self.remote = Host(*name)
-            else:
-                name = sock.getsockname()
-                self.remote = Host(name, "", name)
+            try:
+                ip, port = name
+                name = None
+            except ValueError:  # AF_UNIX
+                ip, port = None, None
+            self.remote = Host(ip, port, name)
 
         cookie = self.headers.get("Cookie")
         if cookie is not None:
@@ -209,8 +210,11 @@ class Request(object):
         base = "{0:s}://{1:s}{2:s}/".format(
             self.scheme,
             self.host,
-            ":{0:d}".format(self.port) if self.port not in (80, 443) else ""
+            ":{0:d}".format(self.port)
+            if self.port not in (80, 443)
+            else ""
         )
+
         self.base = parse_url(base)
 
         url = "{0:s}{1:s}{2:s}".format(
@@ -230,6 +234,8 @@ class Body(object):
 
     """Response Body"""
 
+    encode_errors = 'strict'
+
     def __get__(self, response, cls=None):
         if response is None:
             return self
@@ -243,6 +249,11 @@ class Body(object):
         if isinstance(value, binary_type):
             if value:
                 value = [value]
+            else:
+                value = []
+        elif isinstance(value, text_type):
+            if value:
+                value = [value.encode(response.encoding, self.encode_errors)]
             else:
                 value = []
         elif hasattr(value, "read"):
@@ -327,7 +338,7 @@ class Response(object):
         return "{0:s} {1:s}\r\n".format(protocol, status)
 
     def __bytes__(self):
-        return str(self).encode(self.encoding)
+        return str(self).encode(self.encoding)  # FIXME: this is wrong. HTTP headers must be ISO8859-1. This should only encode the body as UTF-8.
 
     def prepare(self):
         # Set a default content-Type if we don't have one.
@@ -374,8 +385,7 @@ class Response(object):
                 else:
                     self.close = True
 
-        if (self.request.server is not None
-                and "Connection" not in self.headers):
+        if (self.request.server is not None and "Connection" not in self.headers):
             if self.protocol == "HTTP/1.1":
                 if self.close:
                     self.headers.add_header("Connection", "close")

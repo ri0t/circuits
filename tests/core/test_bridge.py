@@ -1,18 +1,13 @@
 #!/usr/bin/python -i
-
+from os import getpid
 
 import pytest
 
-if pytest.PLATFORM == "win32":
-    pytest.skip("Unsupported Platform")
+from circuits import Component, Event, ipc
+
+pytestmark = pytest.mark.skipif(pytest.PLATFORM == 'win32', reason='Unsupported Platform')
 
 pytest.importorskip("multiprocessing")
-
-
-from os import getpid
-
-
-from circuits import ipc, Component, Event
 
 
 class hello(Event):

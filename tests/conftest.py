@@ -1,15 +1,15 @@
 """py.test config"""
 
-import pytest
-
+import collections
 import sys
 import threading
-import collections
-from time import sleep
 from collections import deque
+from time import sleep
 
+import pytest
+
+from circuits import BaseComponent, Debugger, Manager, handler
 from circuits.core.manager import TIMEOUT
-from circuits import handler, BaseComponent, Debugger, Manager
 
 
 class Watcher(BaseComponent):
@@ -26,7 +26,7 @@ class Watcher(BaseComponent):
     def clear(self):
         self.events.clear()
 
-    def wait(self, name, channel=None, timeout=6.0):
+    def wait(self, name, channel=None, timeout=30.0):
         for i in range(int(timeout / TIMEOUT)):
             with self._lock:
                 for event in self.events:
@@ -36,6 +36,15 @@ class Watcher(BaseComponent):
             sleep(TIMEOUT)
         else:
             return False
+
+    def count(self, name, channel=None, n=1, timeout=30.0):
+        n = 0
+        with self._lock:
+            for event in self.events:
+                if event.name == name and event.waitingHandlers == 0:
+                    if (channel is None) or (channel in event.channels):
+                        n += 1
+        return n
 
 
 class Flag(object):
@@ -59,7 +68,7 @@ def call_event(manager, event, *channels):
 
 class WaitEvent(object):
 
-    def __init__(self, manager, name, channel=None, timeout=6.0):
+    def __init__(self, manager, name, channel=None, timeout=30.0):
         if channel is None:
             channel = getattr(manager, "channel", None)
 
@@ -85,7 +94,7 @@ class WaitEvent(object):
             self.manager.removeHandler(self.handler)
 
 
-def wait_for(obj, attr, value=True, timeout=3.0):
+def wait_for(obj, attr, value=True, timeout=30.0):
     from circuits.core.manager import TIMEOUT
     for i in range(int(timeout / TIMEOUT)):
         if isinstance(value, collections.Callable):
@@ -133,12 +142,12 @@ def watcher(request, manager):
     return watcher
 
 
-def pytest_namespace():
-    return dict((
-        ("WaitEvent", WaitEvent),
-        ("wait_for", wait_for),
-        ("call_event", call_event),
-        ("PLATFORM", sys.platform),
-        ("PYVER", sys.version_info[:3]),
-        ("call_event_from_name", call_event_from_name),
-    ))
+for key, value in dict((
+    ("WaitEvent", WaitEvent),
+    ("wait_for", wait_for),
+    ("call_event", call_event),
+    ("PLATFORM", sys.platform),
+    ("PYVER", sys.version_info[:3]),
+    ("call_event_from_name", call_event_from_name),
+)).items():
+    setattr(pytest, key, value)

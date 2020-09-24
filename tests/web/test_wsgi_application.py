@@ -1,9 +1,8 @@
 #!/usr/bin/env python
-
 from circuits.web import Controller
 from circuits.web.wsgi import Application
 
-from .helpers import urlencode, urlopen, HTTPError
+from .helpers import HTTPError, urlencode, urlopen
 
 
 class Root(Controller):
@@ -23,6 +22,7 @@ class Root(Controller):
 
     def test_notfound(self):
         return self.notfound()
+
 
 application = Application() + Root()
 

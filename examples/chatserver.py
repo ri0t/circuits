@@ -1,20 +1,14 @@
 #!/usr/bin/env python
-
-
 """Chat Server Example
 
 This example demonstrates how to create a very simple telnet-style chat
 server that supports many connecting clients.
 """
-
-
 from optparse import OptionParser
 
-
-from circuits.net.events import write
 from circuits import Component, Debugger
+from circuits.net.events import write
 from circuits.net.sockets import TCPServer
-
 
 __version__ = "0.0.1"
 

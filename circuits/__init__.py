@@ -9,7 +9,6 @@ with a strong **Component** Architecture.
 
 .. _Python Programming Language: http://www.python.org/
 """
-
 __author__ = "James Mills"
 __date__ = "24th February 2013"
 
@@ -18,11 +17,10 @@ try:
 except ImportError:
     __version__ = "unknown"
 
-from .core import Event
-from .core import ipc, Bridge
-from .core import sleep, task, Worker
-from .core import handler, reprhandler, BaseComponent, Component
-from .core import Debugger, Loader, Manager, Timer, TimeoutError
+from .core import (
+    BaseComponent, Bridge, Component, Debugger, Event, Loader, Manager,
+    TimeoutError, Timer, Worker, handler, ipc, reprhandler, sleep, task,
+)
 
 # See http://peak.telecommunity.com/DevCenter/setuptools#namespace-packages
 try:
@@ -31,10 +29,11 @@ except ImportError:
     from pkgutil import extend_path
     __path__ = extend_path(__path__, __name__)
     import os
+    from .six import exec_
+    fd = None
     for _path in __path__:
         _path = os.path.join(_path, '__init__.py')
         if _path != __file__ and os.path.exists(_path):
-            from .six import exec_
             with open(_path) as fd:
                 exec_(fd, globals())
     del os, extend_path, _path, fd, exec_

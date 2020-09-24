@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-
 import pytest
-if pytest.PYVER[:2] == (3, 3):
-    pytest.skip("Broken on Python 3.3")
 
 from circuits.web import Controller
 from circuits.web.tools import check_auth, digest_auth
 
-from .helpers import HTTPError, HTTPDigestAuthHandler
-from .helpers import urlopen, build_opener, install_opener
+from .helpers import (
+    HTTPDigestAuthHandler, HTTPError, build_opener, install_opener, urlopen,
+)
+
+pytestmark = pytest.mark.skipif(pytest.PYVER[:2] == (3, 3), reason='Broken on Python 3.3')
 
 
 class Root(Controller):

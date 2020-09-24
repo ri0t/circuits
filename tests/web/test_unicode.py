@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 try:
     from httplib import HTTPConnection
 except ImportError:
@@ -30,6 +29,9 @@ class Root(Controller):
     def response_headers(self):
         self.response.headers["A"] = "ä"
         return "ä"
+
+    def argument(self, arg):
+        return arg
 
 
 def test_index(webapp):
@@ -62,7 +64,7 @@ def test_response_body(webapp):
     assert response.status == 200
     assert response.reason == "OK"
     s = response.read()
-    assert s == b("ä")
+    assert s == u"ä".encode('utf-8')
 
     connection.close()
 
@@ -78,7 +80,7 @@ def test_request_headers(webapp):
     assert response.status == 200
     assert response.reason == "OK"
     s = response.read()
-    assert s == b("ä")
+    assert s == u"ä".encode('utf-8')
 
     connection.close()
 
@@ -102,4 +104,19 @@ def test_response_headers(webapp):
     s = client.response.read()
     a = client.response.headers.get('A')
     assert a == "ä"
-    assert s == b("ä")
+    assert s == u"ä".encode('utf-8')
+
+
+def test_argument(webapp):
+    connection = HTTPConnection(webapp.server.host, webapp.server.port)
+    connection.connect()
+
+    data = 'arg=%E2%86%92'
+    connection.request("POST", "/argument", data, {"Content-type": "application/x-www-form-urlencoded"})
+    response = connection.getresponse()
+    assert response.status == 200
+    assert response.reason == "OK"
+    s = response.read()
+    assert s.decode('utf-8') == u'\u2192'
+
+    connection.close()

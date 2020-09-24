@@ -1,10 +1,7 @@
 #!/usr/bin/env python
-
-
 from glob import glob
 
-
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 
 def read_file(filename):
@@ -43,11 +40,10 @@ setup(
         "Operating System :: POSIX :: Linux",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: Microsoft :: Windows",
-        "Programming Language :: Python :: 2.6",
         "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3.1",
-        "Programming Language :: Python :: 3.2",
-        "Programming Language :: Python :: 3.3",
+        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: Implementation :: PyPy",
         "Topic :: Adaptive Technologies",
@@ -78,13 +74,11 @@ setup(
         ]
     ),
     scripts=glob("bin/*"),
-    install_requires=[],
     entry_points={
         "console_scripts": [
             "circuits.web=circuits.web.main:main",
         ]
     },
-    test_suite="tests.main.main",
     zip_safe=True,
     use_scm_version={
         "write_to": "circuits/version.py",
@@ -92,4 +86,5 @@ setup(
     setup_requires=[
         "setuptools_scm"
     ],
+    extras_require={"stomp": ["stompest>=2.3.0", "pysocks>=1.6.7"]},
 )

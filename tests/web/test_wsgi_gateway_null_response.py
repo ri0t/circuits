@@ -1,8 +1,7 @@
 #!/usr/bin/env python
+from circuits.web import Controller
 
 from .helpers import urlopen
-
-from circuits.web import Controller
 
 
 class Root(Controller):

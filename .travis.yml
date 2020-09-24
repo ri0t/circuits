@@ -1,23 +1,57 @@
 sudo: false
+
 language: python
+
+python:
+  - 2.7
+  - 3.4
+  - 3.5
+  - 3.6
+  - pypy
+
 matrix:
-  include:
-    - os: linux
-      python: "2.7"
+  fast_finish: true
+  allow_failures:
+    # Till https://travis-ci.org/circuits/circuits/jobs/192669838 is solved.
     - os: osx
-      python: "2.7"
-before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update           ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install pypy     ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install python   ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install python3  ; fi
+    - env: ALLOW_FAIL=true
+  include:
+    - python: 2.7
+      os: osx
+      language: generic
+      env: TOXENV=py27
+    - python: 3.6
+      os: osx
+      language: generic
+      env: TOXENV=py36
+      before_install: brew install python3
+    - python: pypy
+      os: osx
+      language: generic
+      env: TOXENV=pypy
+      before_install: brew install pypy
+    - python: 3.6
+      install: pip install -U flake8
+      script: flake8
+      after_success:
+      env: ALLOW_FAIL=true
+    - python: 3.6
+      install: pip install -U isort
+      script: isort -c --diff
+      after_success:
+      env: ALLOW_FAIL=true
+
 install:
-  - pip install pytest
-  - pip install coveralls
-  - pip install pytest-cov
-  - python setup.py install
-script: python setup.py test
-after_success:
-  - coveralls
+  - pip install -Ur requirements-test.txt
+  - pip install -Ue .
+
+script: tox -- --cov --no-cov-on-fail --cov-report=
+
+after_success: codecov
+
 notifications:
   irc: "chat.freenode.net#circuits"
+
+before_script:
+    # Add IPv6 interfaces: https://github.com/travis-ci/travis-ci/issues/8361
+    - if [ "${TRAVIS_OS_NAME}" == "linux" ]; then sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'; fi

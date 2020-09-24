@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-
-
 """DNS Server Example
 
 A simple little DNS Server example using
@@ -21,21 +19,15 @@ Usage (*using dig*)::
     dig @localhost -p 1053 test.com
 
 """
-
-
 from __future__ import print_function
-
 
 import sys
 
+from dnslib import QTYPE, RR, A, DNSHeader, DNSRecord
 
-from dnslib import A, RR
-from dnslib import DNSHeader, DNSRecord, QTYPE
-
-
+from circuits import Component, Debugger, Event
 from circuits.net.events import write
 from circuits.net.sockets import UDPServer
-from circuits import Event, Component, Debugger
 
 
 class query(Event):

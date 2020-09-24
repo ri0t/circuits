@@ -1,13 +1,9 @@
 #!/usr/bin/env python
-
-
 from __future__ import print_function
 
 from time import sleep
 
-
-from circuits import task, Worker
-from circuits import Component, Debugger, Event, Timer
+from circuits import Component, Debugger, Event, Timer, Worker, task
 
 
 def factorial(n):

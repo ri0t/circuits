@@ -3,23 +3,20 @@
 This module implements a set of standard HTTP Errors.
 """
 import json
+import traceback
+
+from circuits import Event
+
+from ..six import string_types
+from .constants import (
+    DEFAULT_ERROR_MESSAGE, HTTP_STATUS_CODES, POWERED_BY, SERVER_URL,
+    SERVER_VERSION,
+)
 
 try:
     from html import escape
 except ImportError:
     from cgi import escape  # Deprecated since version 3.2
-
-
-try:
-    from urllib.parse import urljoin as _urljoin
-except ImportError:
-    from urlparse import urljoin as _urljoin  # NOQA
-
-from circuits import Event
-
-from ..six import string_types
-from .constants import SERVER_URL, SERVER_VERSION, POWERED_BY
-from .constants import DEFAULT_ERROR_MESSAGE, HTTP_STATUS_CODES
 
 
 class httperror(Event):
@@ -52,8 +49,9 @@ class httperror(Event):
         )
 
         if self.error is not None:
+            stack = self.error[2] if isinstance(self.error[2], (list, tuple)) else traceback.format_tb(self.error[2])
             self.traceback = "ERROR: (%s) %s\n%s" % (
-                self.error[0], self.error[1], "".join(self.error[2])
+                self.error[0], self.error[1], "".join(stack)
             )
         else:
             self.traceback = ""
@@ -164,7 +162,7 @@ class redirect(httperror):
 
         super(redirect, self).__init__(request, response, code)
 
-        if code in (300, 301, 302, 303, 307):
+        if code in (300, 301, 302, 303, 307, 308):
             response.headers["Content-Type"] = "text/html"
             # "The ... URI SHOULD be given by the Location field
             # in the response."
@@ -181,6 +179,8 @@ class redirect(httperror):
                    303: ("This resource can be found at "
                          "<a href='%s'>%s</a>."),
                    307: ("This resource has moved temporarily to "
+                         "<a href='%s'>%s</a>."),
+                   308: ("This resource has permanently moved to "
                          "<a href='%s'>%s</a>."),
                    }[code]
             response.body = "<br />\n".join([msg % (u, u) for u in urls])

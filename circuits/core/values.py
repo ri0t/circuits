@@ -1,12 +1,11 @@
 """
 This defines the Value object used by components and events.
 """
-
-
+from ..six import PY2, python_2_unicode_compatible, string_types
 from .events import Event
-from ..six import string_types
 
 
+@python_2_unicode_compatible
 class Value(object):
 
     """Create a new future Value Object
@@ -74,7 +73,8 @@ class Value(object):
 
     def __str__(self):
         "x.__str__() <==> str(x)"
-
+        if PY2:
+            return unicode(self.value).encode('utf-8')
         return str(self.value)
 
     def inform(self, force=False):

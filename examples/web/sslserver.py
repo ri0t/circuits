@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-
-from circuits.web import Server, Controller
+from circuits import Debugger
+from circuits.web import Controller, Server
 
 
 class Root(Controller):
@@ -10,7 +10,6 @@ class Root(Controller):
 
 
 app = Server(("0.0.0.0", 8443), secure=True, certfile="cert.pem")
-from circuits import Debugger
 Debugger().register(app)
 Root().register(app)
 app.run()

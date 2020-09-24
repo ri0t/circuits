@@ -1,9 +1,8 @@
 #!/usr/bin/env python
-
 from json import dumps
 
-from circuits import handler, Component
-from circuits.web import Server, Controller, Logger
+from circuits import Component, handler
+from circuits.web import Controller, Logger, Server
 
 
 class JSONSerializer(Component):
@@ -21,6 +20,7 @@ class Root(Controller):
 
     def index(self):
         return {"message": "Hello World!"}
+
 
 app = Server(("0.0.0.0", 9000))
 JSONSerializer().register(app)

@@ -3,14 +3,13 @@
 This module implements a XML RPC dispatcher that translates incoming
 RPC calls over XML into RPC events.
 """
-
 try:
     from xmlrpc.client import dumps, loads, Fault
 except ImportError:
     from xmlrpclib import dumps, loads, Fault  # NOQA
 
+from circuits import BaseComponent, Event, handler
 from circuits.six import binary_type
-from circuits import handler, Event, BaseComponent
 
 
 class rpc(Event):

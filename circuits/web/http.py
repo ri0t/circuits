@@ -3,43 +3,29 @@
 This module implements the server side Hyper Text Transfer Protocol
 or commonly known as HTTP.
 """
-
-
 from io import BytesIO
+from socket import socket
 
-try:
-    from urllib.parse import quote
-    from urllib.parse import urlparse, urlunparse
-except ImportError:
-    from urllib import quote  # NOQA
-    from urlparse import urlparse, urlunparse  # NOQA
-
-
-from circuits.six import text_type
+from circuits.core import BaseComponent, Value, handler
 from circuits.net.events import close, write
 from circuits.net.utils import is_ssl_handshake
-from circuits.core import handler, BaseComponent, Value
+from circuits.six import text_type
+from circuits.six.moves.urllib_parse import quote
 
 from . import wrappers
-from .url import parse_url
-from .exceptions import HTTPException
-from .events import request, response, stream
-from .parsers import HttpParser, BAD_FIRST_LINE
+from .constants import SERVER_PROTOCOL, SERVER_VERSION
 from .errors import httperror, notfound, redirect
-from .exceptions import Redirect as RedirectException
-from .constants import SERVER_VERSION, SERVER_PROTOCOL
+from .events import request, response, stream
+from .exceptions import HTTPException, Redirect as RedirectException
+from .parsers import BAD_FIRST_LINE, HttpParser
+from .url import parse_url
+from .utils import is_unix_socket
 
 MAX_HEADER_FRAGENTS = 20
 HTTP_ENCODING = 'utf-8'
 
-try:
-    unicode
-except NameError:
-    unicode = str
-
 
 class HTTP(BaseComponent):
-
     """HTTP Protocol Component
 
     Implements the HTTP server protocol and parses and processes incoming
@@ -65,15 +51,7 @@ class HTTP(BaseComponent):
         self._server = server
         self._encoding = encoding
 
-        url = "{0:s}://{1:s}{2:s}".format(
-            (server.secure and "https") or "http",
-            server.host or "0.0.0.0",
-            ":{0:d}".format(server.port or 80)
-            if server.port not in (80, 443)
-            else ""
-        )
-        self.uri = parse_url(url)
-
+        self._uri = None
         self._clients = {}
         self._buffers = {}
 
@@ -87,15 +65,32 @@ class HTTP(BaseComponent):
 
     @property
     def scheme(self):
-        if not hasattr(self, "_server"):
-            return
         return "https" if self._server.secure else "http"
 
     @property
     def base(self):
-        if not hasattr(self, "uri"):
-            return
+        if self.uri is None:
+            return ""
         return self.uri.utf8().rstrip(b"/").decode(self._encoding)
+
+    @property
+    def uri(self):
+        return self._uri
+
+    @handler("ready", priority=1.0)
+    def _on_ready(self, server, bind):
+        if is_unix_socket(server.host):
+            url = server.host
+        else:
+            url = "{0:s}://{1:s}{2:s}".format(
+                (server.secure and "https") or "http",
+                server.host or "0.0.0.0",
+                ":{0:d}".format(server.port or 80)
+                if server.port not in (80, 443)
+                else ""
+            )
+
+        self._uri = parse_url(url)
 
     @handler("stream")  # noqa
     def _on_stream(self, res, data):
@@ -440,6 +435,9 @@ class HTTP(BaseComponent):
             req, res = fevent.value.parent.event.args[:2]
         elif len(fevent.args[2:]) == 4:
             req, res = fevent.args[2:]
+        elif len(fevent.args) == 2 and isinstance(fevent.args[0], socket):
+            req = wrappers.Request(fevent.args[0], server=self._server)
+            res = wrappers.Response(req, self._encoding, 500)
         else:
             return
 

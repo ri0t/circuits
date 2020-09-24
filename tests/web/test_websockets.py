@@ -1,14 +1,12 @@
 #!/usr/bin/env python
-
-
 from __future__ import print_function
 
+import pytest
 
 from circuits import Component
+from circuits.net.sockets import BUFSIZE, close, write
 from circuits.web.controllers import Controller
-from circuits.net.sockets import close, write
 from circuits.web.websockets import WebSocketClient, WebSocketsDispatcher
-
 
 from .helpers import urlopen
 
@@ -49,7 +47,8 @@ class Client(Component):
         self.response = data
 
 
-def test(manager, watcher, webapp):
+@pytest.mark.parametrize('chunksize', [BUFSIZE, BUFSIZE + 1, BUFSIZE * 2])
+def test(manager, watcher, webapp, chunksize):
     echo = Echo().register(webapp)
     assert watcher.wait("registered", channel="wsserver")
 
@@ -80,6 +79,19 @@ def test(manager, watcher, webapp):
     client.fire(write("Hello!"), "ws")
     assert watcher.wait("read", channel="ws")
     assert client.response == "Received: Hello!"
+
+    watcher.clear()
+
+    client.fire(write("World!"), "ws")
+    assert watcher.wait("read", channel="ws")
+    assert client.response == "Received: World!"
+
+    watcher.clear()
+
+    data = "A" * (chunksize + 1)
+    client.fire(write(data), "ws")
+    assert watcher.wait("read", channel="ws")
+    assert client.response == "Received: %s" % (data,)
 
     f = urlopen(webapp.server.http.base)
     s = f.read()

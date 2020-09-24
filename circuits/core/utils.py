@@ -2,9 +2,7 @@
 
 This module defines utilities used by circuits.
 """
-
 import sys
-
 from imp import reload
 
 
@@ -40,6 +38,7 @@ def findtype(root, component, all=False):
     if components:
         return components[0]
 
+
 findcmp = findtype
 
 
@@ -59,5 +58,5 @@ def safeimport(name):
             return __import__(name, globals(), locals(), [""])
     except:
         for name in sys.modules.copy():
-            if not name in modules:
+            if name not in modules:
                 del sys.modules[name]

@@ -1,6 +1,5 @@
 #!/usr/bin/python
-
-from circuits import Event, Component
+from circuits import Component, Event
 
 
 class simple_event(Event):
@@ -70,6 +69,7 @@ class App(Component):
         Test event has been completely processed, save the achieved state.
         """
         self._state_when_complete = self._state
+
 
 app = App()
 Nested1().register(app)

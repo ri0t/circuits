@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-
 """Example IRC Client
 
 A basic IRC client with a very basic console interface.
@@ -11,25 +9,17 @@ For usage type:
    ./ircclient.py --help
 
 """
-
-
 from __future__ import print_function
 
 import os
-from socket import gethostname
 from optparse import OptionParser
+from socket import gethostname
 
-
-from circuits import handler, Component, Debugger
-from circuits import __version__ as systemVersion
-
+from circuits import Component, Debugger, __version__ as systemVersion, handler
 from circuits.io import stdin
-
 from circuits.net.events import connect
 from circuits.net.sockets import TCPClient
-
-from circuits.protocols.irc import IRC, PRIVMSG, USER, NICK, JOIN
-
+from circuits.protocols.irc import IRC, JOIN, NICK, PRIVMSG, USER
 
 USAGE = "%prog [options] host [port]"
 VERSION = "%prog v" + systemVersion
@@ -46,7 +36,7 @@ def parse_options():
 
     parser.add_option(
         "-d", "--debug",
-        action="store_true", default="False", dest="debug",
+        action="store_true", default=False, dest="debug",
         help="Enable debug verbose logging",
     )
 

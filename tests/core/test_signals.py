@@ -1,17 +1,13 @@
 #!/usr/bin/env python
-
-
-import pytest
-
-
 import os
 import sys
-from time import sleep
 from errno import ESRCH
-from signal import SIGTERM
 from os import kill, remove
+from signal import SIGTERM
 from subprocess import Popen
+from time import sleep
 
+import pytest
 
 from . import signalapp
 
@@ -59,11 +55,10 @@ def test(tmpdir):
     kill(pid, SIGTERM)
     wait(pid)
 
-    f = open(signalfile, "r")
-    signal = f.read().strip()
-    f.close()
+    with open(signalfile, "r") as fd:
+        signal = fd.read().strip()
 
-    assert signal == str(SIGTERM)
+    assert int(signal) == int(SIGTERM)
 
     remove(pidfile)
     remove(signalfile)

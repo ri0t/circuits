@@ -17,10 +17,10 @@
    :target: https://travis-ci.org/circuits/circuits
    :alt: Build Status
 
-.. image:: https://coveralls.io/repos/circuits/circuits/badge.png
-   :target: https://coveralls.io/r/circuits/circuits
-   :alt: Coverage
- 
+.. image:: https://codecov.io/gh/circuits/circuits/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/circuits/circuits
+  :alt: Coverage
+
 .. image:: https://landscape.io/github/circuits/circuits/master/landscape.png
    :target: https://landscape.io/github/circuits/circuits/master
    :alt: Quality
@@ -28,10 +28,6 @@
 .. image:: https://badge.waffle.io/circuits/circuits.png?label=ready&title=Ready 
    :target: https://waffle.io/circuits/circuits
    :alt: Stories Ready
-
-.. image:: https://requires.io/bitbucket/circuits/circuits/requirements.png?branch=default
-   :target: https://requires.io/bitbucket/circuits/circuits/requirements?branch=default
-   :alt: Requirements Status
 
 circuits is a **Lightweight** **Event** driven and **Asynchronous**
 **Application Framework** for the `Python Programming Language`_
@@ -78,8 +74,8 @@ Supported Platforms
 -------------------
 
 - Linux, FreeBSD, Mac OS X, Windows
-- Python 2.6, 2.7, 3.2, 3.3, 3.4
-- pypy 2.0, 2.1, 2.2
+- Python 2.7, 3.4, 3.5, 3.6
+- pypy (the newer the better)
 
 
 Installation
@@ -143,4 +139,4 @@ Disclaimer
 Whilst I (James Mills) continue to contribute and maintain the circuits project
 I do not represent the interests or business of my employer Facebook Inc. The
 contributions I make are of my own free time and have no bearing or relevance
-o Facebook Inc.
+to Facebook Inc.

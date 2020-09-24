@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-
-
 """DNS Client Example
 
 A simple little DNS Client example using
@@ -9,7 +7,7 @@ to handle the DNS protocol parsing and packet
 deconstruction (*a really nice library btw with
 great integration into circuits*).
 
-Specify the server, port and query as argumetns
+Specify the server, port, and query as arguments
 to perform a lookup against a server using UDP.
 
 To run this example::
@@ -17,20 +15,15 @@ To run this example::
     pip install dnslib
     ./dnsclient.py 8.8.8.8 53 google.com
 """
-
-
 from __future__ import print_function
-
 
 import sys
 
-
 from dnslib import DNSQuestion, DNSRecord
 
-
+from circuits import Component, Debugger, Event
 from circuits.net.events import write
 from circuits.net.sockets import UDPClient
-from circuits import Event, Component, Debugger
 
 
 class reply(Event):
@@ -76,7 +69,7 @@ class DNSClient(Component):
     """DNS Client
 
     This ties everything together in a nice
-    configurable way with protocol, transport
+    configurable way with protocol, transport,
     and dummy handler as well as optional debugger.
     """
 

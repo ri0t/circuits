@@ -1,12 +1,10 @@
 [![Build Status](https://travis-ci.org/circuits/circuits.svg)](https://travis-ci.org/circuits/circuits)
 
-[![Coverage](https://coveralls.io/repos/circuits/circuits/badge.png)](https://coveralls.io/r/circuits/circuits)
+[![codecov](https://codecov.io/gh/circuits/circuits/branch/master/graph/badge.svg)](https://codecov.io/gh/circuits/circuits)
 
 [![Quality](https://landscape.io/github/circuits/circuits/master/landscape.png)](https://landscape.io/github/circuits/circuits/master)
 
 [![Stories Ready](https://badge.waffle.io/circuits/circuits.png?label=ready&title=Ready)](https://waffle.io/circuits/circuits)
-
-[![Requirements Status](https://requires.io/bitbucket/circuits/circuits/requirements.png?branch=default)](https://requires.io/bitbucket/circuits/circuits/requirements?branch=default)
 
 circuits is a **Lightweight** **Event** driven and **Asynchronous** **Application Framework** for the [Python Programming Language](http://www.python.org/) with a strong **Component** Architecture.
 
@@ -43,8 +41,8 @@ Supported Platforms
 ===================
 
 -   Linux, FreeBSD, Mac OS X, Windows
--   Python 2.6, 2.7, 3.2, 3.3, 3.4
--   pypy 2.0, 2.1, 2.2
+-   Python 2.7, 3.4, 3.5, 3.6
+-   pypy (the newer the better)
 
 Installation
 ============
@@ -95,4 +93,4 @@ There are also several places you can reach out to the circuits community:
 Disclaimer
 ==========
 
-Whilst I (James Mills) continue to contribute and maintain the circuits project I do not represent the interests or business of my employer Facebook Inc. The contributions I make are of my own free time and have no bearing or relevance o Facebook Inc.
+Whilst I (James Mills) continue to contribute and maintain the circuits project I do not represent the interests or business of my employer Facebook Inc. The contributions I make are of my own free time and have no bearing or relevance to Facebook Inc.

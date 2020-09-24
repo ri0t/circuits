@@ -1,9 +1,7 @@
 #!/usr/bin/env python
-
 from circuits.web import Controller
 
-from .helpers import build_opener, HTTPCookieProcessor
-from .helpers import CookieJar
+from .helpers import CookieJar, HTTPCookieProcessor, build_opener
 
 
 class Root(Controller):

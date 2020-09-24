@@ -6,21 +6,18 @@ processes. Bridge is used internally when a Component is started in
 Pipe is used as the socket transport between two sides of a Bridge
 (*there must be a :class:`~Bridge` instnace on both sides*).
 """
-
-
 import traceback
+
+from ..six import b
+from .components import BaseComponent
+from .events import Event, exception
+from .handlers import handler
+from .values import Value
 
 try:
     from cPickle import dumps, loads
 except ImportError:
     from pickle import dumps, loads  # NOQA
-
-
-from ..six import b
-from .values import Value
-from .handlers import handler
-from .events import Event, exception
-from .components import BaseComponent
 
 
 _sentinel = b('~~~')

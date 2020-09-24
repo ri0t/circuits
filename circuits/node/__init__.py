@@ -2,9 +2,8 @@
 
 Distributed processing support for circuits.
 """
-
-from .node import Node
 from .events import remote
+from .node import Node
 
 # flake8: noqa
 # pylama: skip=1

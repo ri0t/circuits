@@ -20,11 +20,12 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 '''This is a module for dealing with urls. In particular, sanitizing them.'''
 
-import re
 import codecs
+import re
+
+from circuits.six import b, string_types, text_type
 
 try:
     from urllib.parse import quote, unquote
@@ -33,7 +34,6 @@ except ImportError:
     from urllib import quote, unquote  # NOQA
     from urlparse import urljoin, urlparse, urlunparse  # NOQA
 
-from circuits.six import b, string_types, text_type
 
 # Come codes that we'll need
 IDNA = codecs.lookup('idna')
@@ -83,7 +83,7 @@ class URL(object):
         return cls(
             parsed.scheme, parsed.hostname,
             port, parsed.path, parsed.params,
-            parsed.query,  parsed.fragment
+            parsed.query, parsed.fragment
         )
 
     def __init__(self, scheme, host, port, path,
@@ -139,7 +139,7 @@ class URL(object):
 
     def __eq__(self, other):
         '''Return true if this url is /exactly/ equal to another'''
-        if isinstance(other, basestring):
+        if isinstance(other, string_types):
             return self.__eq__(self.parse(other, 'utf-8'))
         return (
             self._scheme == other._scheme and
@@ -213,7 +213,8 @@ class URL(object):
 
     def lower(self):
         '''Lowercase the hostname'''
-        self._host = self._host.lower()
+        if self._host is not None:
+            self._host = self._host.lower()
         return self
 
     def sanitize(self):

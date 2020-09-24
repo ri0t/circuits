@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-
 from datetime import datetime
-from time import mktime
 from email.utils import parsedate
+from time import mktime
 
 from circuits.web import Controller
 

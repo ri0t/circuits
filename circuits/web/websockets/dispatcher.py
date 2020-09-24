@@ -1,12 +1,11 @@
 import base64
 import hashlib
 
-
-from circuits.six import b
-from circuits.web.errors import httperror
-from circuits import handler, BaseComponent
+from circuits import BaseComponent, handler
 from circuits.net.events import connect, disconnect
 from circuits.protocols.websocket import WebSocketCodec
+from circuits.six import b
+from circuits.web.errors import httperror
 
 
 class WebSocketsDispatcher(BaseComponent):
@@ -57,16 +56,14 @@ class WebSocketsDispatcher(BaseComponent):
         self._protocol_version = 13
         headers = request.headers
         sec_key = headers.get("Sec-WebSocket-Key", "").encode("utf-8")
+        subprotocols = headers.elements("Sec-WebSocket-Protocol")
 
         connection_tokens = [s.strip() for s in
                              headers.get("Connection", "").lower().split(",")]
 
         try:
-            if ("Host" not in headers
-                or headers.get("Upgrade", "").lower() != "websocket"
-                or "upgrade" not in connection_tokens
-                or sec_key is None
-                    or len(base64.b64decode(sec_key)) != 16):
+            if ("Host" not in headers or headers.get("Upgrade", "").lower() != "websocket" or
+                    "upgrade" not in connection_tokens or sec_key is None or len(base64.b64decode(sec_key)) != 16):
                 return httperror(request, response, code=400)
             if headers.get("Sec-WebSocket-Version", "") != "13":
                 response.headers["Sec-WebSocket-Version"] = "13"
@@ -88,12 +85,17 @@ class WebSocketsDispatcher(BaseComponent):
             response.headers["Upgrade"] = "WebSocket"
             response.headers["Connection"] = "Upgrade"
             response.headers["Sec-WebSocket-Accept"] = accept.decode()
+            if subprotocols:
+                response.headers["Sec-WebSocket-Protocol"] = self.select_subprotocol(subprotocols)
             codec = WebSocketCodec(request.sock, channel=self._wschannel)
             self._codecs[request.sock] = codec
             codec.register(self)
             return response
         finally:
             event.stop()
+
+    def select_subprotocol(self, subprotocols):
+        return subprotocols[0]
 
     @handler("response_complete")
     def _on_response_complete(self, e, value):

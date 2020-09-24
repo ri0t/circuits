@@ -1,12 +1,11 @@
 #!/usr/bin/env python
-
 from __future__ import print_function
 
-
 import pytest
-pytest.skip("XXX: This test fails intermittently")
 
-from circuits import Event, Component
+from circuits import Component, Event
+
+pytestmark = pytest.mark.skip("XXX: This test fails intermittently")
 
 
 class test(Event):

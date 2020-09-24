@@ -2,15 +2,14 @@
 
 Test Component's representation string.
 """
-
 import os
+
+from circuits import Component, Event
 
 try:
     from threading import current_thread
 except ImportError:
     from threading import currentThread as current_thread  # NOQA
-
-from circuits import Event, Component
 
 
 class App(Component):

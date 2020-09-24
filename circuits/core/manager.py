@@ -1,36 +1,32 @@
 """
 This module defines the Manager class.
 """
-
-
 import atexit
-from time import time
-from os import getpid, kill
+from collections import deque
+from heapq import heappop, heappush
 from inspect import isfunction
-from uuid import uuid4 as uuid
-from operator import attrgetter
-from types import GeneratorType
 from itertools import chain, count
-from signal import SIGINT, SIGTERM
-from heapq import heappush, heappop
-from traceback import format_exc
+from multiprocessing import Process, current_process
+from operator import attrgetter
+from os import getpid, kill
+from signal import SIGINT, SIGTERM, signal as set_signal_handler
 from sys import exc_info as _exc_info, stderr
-from signal import signal as set_signal_handler
-from threading import current_thread, Thread, RLock
-from multiprocessing import current_process, Process
+from threading import RLock, Thread, current_thread
+from time import time
+from traceback import format_exc
+from types import GeneratorType
+from uuid import uuid4 as uuid
 
+from ..six import Iterator, create_bound_method, next
+from ..tools import tryimport
+from .events import Event, exception, generate_events, signal, started, stopped
+from .handlers import handler
+from .values import Value
 
 try:
     from signal import SIGKILL
 except ImportError:
     SIGKILL = SIGTERM
-
-
-from .values import Value
-from ..tools import tryimport
-from .handlers import handler
-from ..six import create_bound_method, next, Iterator
-from .events import exception, generate_events, signal, started, stopped, Event
 
 
 thread = tryimport(("thread", "_thread"))
@@ -131,6 +127,43 @@ class _State(object):
         self.tick_handler = None
 
 
+class _EventQueue(object):
+    __slots__ = ('_queue', '_priority_queue', '_counter', '_flush_batch')
+
+    def __init__(self):
+        self._queue = deque()
+        self._priority_queue = []
+        self._counter = count()
+        self._flush_batch = 0
+
+    def __len__(self):
+        return len(self._queue) + len(self._priority_queue)
+
+    def drainFrom(self, other_queue):
+        self._queue.extend(other_queue._queue)
+        other_queue._queue.clear()
+        # Queue is currently flushing events /o\
+        assert not len(other_queue._priority_queue)
+
+    def append(self, event, channel, priority):
+        self._queue.append((priority, next(self._counter), (event, channel)))
+
+    def dispatchEvents(self, dispatcher):
+        if self._flush_batch == 0:
+            # FIXME: Might be faster to use heapify instead of pop +
+            # heappush. Though, with regards to thread safety this
+            # appears to be the better approach.
+            self._flush_batch = count = len(self._queue)
+            while count:
+                count -= 1
+                heappush(self._priority_queue, self._queue.popleft())
+
+        while self._flush_batch > 0:
+            self._flush_batch -= 1  # Decrement first!
+            (event, channels) = heappop(self._priority_queue)[2]
+            dispatcher(event, channels, self._flush_batch)
+
+
 class Manager(object):
 
     """
@@ -189,8 +222,7 @@ class Manager(object):
     def __init__(self, *args, **kwargs):
         "initializes x; see x.__class__.__doc__ for signature"
 
-        self._queue = []
-        self._counter = count()
+        self._queue = _EventQueue()
 
         self._tasks = set()
         self._cache = dict()
@@ -403,8 +435,7 @@ class Manager(object):
             self.root._executing_thread = component._executing_thread
             component._executing_thread = None
         self.components.add(component)
-        self.root._queue.extend(list(component._queue))
-        component._queue = []
+        self.root._queue.drainFrom(component._queue)
         self.root._cache_needs_refresh = True
 
     def unregisterChild(self, component):
@@ -413,8 +444,9 @@ class Manager(object):
 
     def _fire(self, event, channel, priority=0):
         # check if event is fired while handling an event
-        if thread.get_ident() == (self._executing_thread or
-                                  self._flushing_thread) and not isinstance(event, signal):
+        th = (self._executing_thread or self._flushing_thread)
+        if thread.get_ident() == (th.ident if th else None) and \
+                not isinstance(event, signal):
             if self._currently_handling is not None and \
                     getattr(self._currently_handling, "cause", None):
                 # if the currently handled event wants to track the
@@ -423,14 +455,7 @@ class Manager(object):
                 event.effects = 1
                 self._currently_handling.effects += 1
 
-            heappush(
-                self._queue,
-                (
-                    priority,
-                    next(self._counter),
-                    (event, channel)
-                )
-            )
+            self._queue.append(event, channel, priority)
 
         # the event comes from another thread
         else:
@@ -448,8 +473,7 @@ class Manager(object):
                 # operations that assume its value to remain unchanged.
                 handling = self._currently_handling
 
-                heappush(self._queue,
-                        (priority, next(self._counter), (event, channel)))
+                self._queue.append(event, channel, priority)
                 if isinstance(handling, generate_events):
                     handling.reduce_time_left(0)
 
@@ -543,8 +567,7 @@ class Manager(object):
 
         yield state
 
-        if not state.timeout:
-            self.removeHandler(_on_done_handler, "%s_done" % event_name)
+        self.removeHandler(_on_done_handler, "%s_done" % event_name)
 
         if state.event is not None:
             yield CallValue(state.event.value)
@@ -573,13 +596,8 @@ class Manager(object):
         # events. Note that _flush can be called recursively.
         old_flushing = self._flushing_thread
         try:
-            self._flushing_thread = thread.get_ident()
-            if self._flush_batch == 0:
-                self._flush_batch = len(self._queue)
-            while self._flush_batch > 0:
-                self._flush_batch -= 1  # Decrement first!
-                priority, count, (event, channels) = heappop(self._queue)
-                self._dispatcher(event, channels, self._flush_batch)
+            self._flushing_thread = current_thread()
+            self._queue.dispatchEvents(self._dispatcher)
         finally:
             self._flushing_thread = old_flushing
 
@@ -772,10 +790,10 @@ class Manager(object):
             return self.__thread, None
 
     def join(self):
-        if getattr(self, "_thread", None) is not None:
+        if self.__thread is not None:
             return self.__thread.join()
 
-        if getattr(self, "_process", None) is not None:
+        if self.__process is not None:
             return self.__process.join()
 
     def stop(self, code=None):
@@ -914,7 +932,8 @@ class Manager(object):
         if self._running:
             self.fire(generate_events(self._lock, timeout), "*")
 
-        self._queue and self.flush()
+        if len(self._queue):
+            self.flush()
 
     def run(self, socket=None):
         """
@@ -953,7 +972,7 @@ class Manager(object):
         self.fire(started(self))
 
         try:
-            while self.running or self._queue:
+            while self.running or len(self._queue):
                 self.tick()
             # Fading out, handle remaining work from stop event
             for _ in range(3):
